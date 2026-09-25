@@ -100,6 +100,20 @@ JSON/HTTP; `internal/tui` is the terminal UI; `internal/sim` is the simulator.
 See `docs/PROTOCOL.md` for the reverse-engineered protocol details and
 `docs/LACP.md` for the LACP analysis.
 
+## Releases
+
+Tagged pushes (`vX.Y.Z`) trigger `.github/workflows/release.yml`, which builds
+for Linux, macOS and Windows and attaches to the release:
+
+- the standalone `prosafe` CLI/TUI binary (linux/amd64+arm64, darwin/amd64+arm64,
+  windows/amd64), and
+- the optional Tauri desktop app bundle (`.deb`/`.AppImage`, `.dmg`, `.msi`).
+
+The desktop app is entirely optional — the CLI, TUI and `serve` API work on
+their own. The workflow uses GitHub Actions syntax; Forgejo Actions reads the
+same `.github/workflows/` path, so it runs there too once a runner is
+registered.
+
 ## Security note
 
 On this firmware the admin password is sent XOR-obfuscated with a fixed key,

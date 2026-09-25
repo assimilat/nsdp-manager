@@ -1,0 +1,16 @@
+# Fast checks on every push and PR: the Go core builds, vets and tests.
+name: ci
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.24" }
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
