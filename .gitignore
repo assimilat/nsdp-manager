@@ -1,0 +1,19 @@
+# Go
+/prosafe
+*.test
+*.out
+
+# Node / Vite
+desktop/node_modules/
+desktop/dist/
+
+# Tauri / Rust build output
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
+# Bundled sidecar binaries are rebuilt per host (see README); don't commit them
+desktop/src-tauri/binaries/
+
+# Editor
+.DS_Store
+*.swp

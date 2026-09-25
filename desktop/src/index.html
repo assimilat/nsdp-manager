@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ProSAFE Plus</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">◧</span> ProSAFE <b>Plus</b></div>
+      <button id="rescan" class="btn ghost">⟳ Rescan network</button>
+      <button id="addip" class="btn ghost">＋ Add by IP</button>
+      <div id="devices" class="devices"></div>
+      <div class="sidebar-foot">
+        <span id="conn-dot" class="dot"></span><span id="conn-text">starting…</span>
+      </div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div id="switch-title" class="switch-title">No switch selected</div>
+        <nav id="tabs" class="tabs"></nav>
+      </header>
+      <section id="content" class="content">
+        <div class="empty">Select a switch on the left, then log in.</div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast"></div>
+  <div id="modal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn ghost">Cancel</button>
+        <button id="modal-ok" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

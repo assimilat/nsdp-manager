@@ -1,0 +1,1937 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ProSAFE Plus NSDP API (LLM configuration interface)",
+    "version": "0.1.0",
+    "description": "Local HTTP API for managing NETGEAR ProSAFE Plus switches over NSDP, designed as an LLM tool-calling / agent configuration interface. `prosafe serve` exposes this OpenAPI document at /openapi.json so a language model (or any generated client) can drive the switch: discover devices, log in, then read and write every configurable page. Each operation has a stable operationId suitable for use as a tool name. Workflow for an agent: 1) POST /api/discover, 2) POST /api/switch/{mac}/login with the password, 3) call the GET endpoints to read state and the POST endpoints to change it. Login state is held per server process. Destructive operations (reboot, factory-reset, firmware) are real and immediate. Start the server with --token to require an X-Auth-Token header.",
+    "license": {
+      "name": "MIT"
+    },
+    "x-intended-for": "LLM-based configuration / agent tool-calling"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "This server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "discovery",
+      "description": "Find and authenticate to switches"
+    },
+    {
+      "name": "info",
+      "description": "Identity and network settings"
+    },
+    {
+      "name": "ports",
+      "description": "Port status, statistics, cable test, mirroring"
+    },
+    {
+      "name": "vlan",
+      "description": "VLAN engine, membership and PVIDs"
+    },
+    {
+      "name": "qos",
+      "description": "Quality of service and rate limiting"
+    },
+    {
+      "name": "lag",
+      "description": "Static link aggregation"
+    },
+    {
+      "name": "multicast",
+      "description": "IGMP snooping"
+    },
+    {
+      "name": "management",
+      "description": "Loop detection, power saving, LEDs"
+    },
+    {
+      "name": "maintenance",
+      "description": "Password, firmware, reboot, config files"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "token": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Auth-Token",
+        "description": "Required only when the server was started with --token."
+      }
+    },
+    "parameters": {
+      "mac": {
+        "name": "mac",
+        "in": "path",
+        "required": true,
+        "description": "Switch MAC address (colon-separated, lower-case).",
+        "schema": {
+          "type": "string",
+          "example": "08:bd:43:71:42:88"
+        }
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "OK": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Device": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "mac": {
+            "type": "string"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "netmask": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "dhcp": {
+            "type": "boolean"
+          },
+          "firmware": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "ports": {
+            "type": "integer"
+          },
+          "password_flags": {
+            "type": "integer"
+          }
+        }
+      },
+      "DeviceRow": {
+        "type": "object",
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/Device"
+          },
+          "password_mode": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "xor",
+              "hash4",
+              "hash8"
+            ]
+          },
+          "logged_in": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Info": {
+        "type": "object",
+        "properties": {
+          "model": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "mac": {
+            "type": "string"
+          },
+          "serial": {
+            "type": "string"
+          },
+          "firmware": {
+            "type": "string"
+          },
+          "firmware2": {
+            "type": "string"
+          },
+          "active_image": {
+            "type": "integer"
+          },
+          "next_image": {
+            "type": "integer"
+          },
+          "dhcp": {
+            "type": "boolean"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "netmask": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          },
+          "ports": {
+            "type": "integer"
+          },
+          "password_mode": {
+            "type": "string"
+          }
+        }
+      },
+      "Login": {
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "example": "password"
+          }
+        }
+      },
+      "IPSettings": {
+        "type": "object",
+        "properties": {
+          "dhcp": {
+            "type": "boolean"
+          },
+          "ip": {
+            "type": "string"
+          },
+          "netmask": {
+            "type": "string"
+          },
+          "gateway": {
+            "type": "string"
+          }
+        }
+      },
+      "PortStatus": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "speed": {
+            "type": "integer"
+          },
+          "speed_name": {
+            "type": "string"
+          },
+          "up": {
+            "type": "boolean"
+          },
+          "flow_control": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PortsResponse": {
+        "type": "object",
+        "properties": {
+          "ports": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortStatus"
+            }
+          },
+          "admin_supported": {
+            "type": "boolean"
+          },
+          "admin_speeds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PortStats": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "rx_bytes": {
+            "type": "integer"
+          },
+          "tx_bytes": {
+            "type": "integer"
+          },
+          "crc_errors": {
+            "type": "integer"
+          }
+        }
+      },
+      "CableResult": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "status_name": {
+            "type": "string"
+          },
+          "distance_m": {
+            "type": "integer"
+          }
+        }
+      },
+      "Mirror": {
+        "type": "object",
+        "properties": {
+          "dest": {
+            "type": "integer",
+            "description": "Destination port; 0 disables mirroring."
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "Multicast": {
+        "type": "object",
+        "properties": {
+          "snooping": {
+            "type": "boolean"
+          },
+          "vid": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4094
+          },
+          "validate_igmpv3": {
+            "type": "boolean"
+          },
+          "block_unknown": {
+            "type": "boolean"
+          },
+          "router_ports": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "router_ports_supported": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LAG": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "LAGsResponse": {
+        "type": "object",
+        "properties": {
+          "supported": {
+            "type": "boolean"
+          },
+          "lags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LAG"
+            }
+          }
+        }
+      },
+      "Management": {
+        "type": "object",
+        "properties": {
+          "loop_detection": {
+            "type": "boolean"
+          },
+          "power_saving": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "port_led": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "loop_prevention": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "VLANResponse": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "integer"
+              },
+              "mode_name": {
+                "type": "string"
+              },
+              "max_vlans": {
+                "type": "integer"
+              },
+              "port_vlans": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PortVLAN"
+                }
+              },
+              "vlans_8021q": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/VLAN8021Q"
+                }
+              },
+              "pvids": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PVID"
+                }
+              }
+            }
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PortVLAN": {
+        "type": "object",
+        "properties": {
+          "vid": {
+            "type": "integer"
+          },
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "VLAN8021Q": {
+        "type": "object",
+        "properties": {
+          "vid": {
+            "type": "integer"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "tagged": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "PVID": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "vid": {
+            "type": "integer"
+          }
+        }
+      },
+      "QoSResponse": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "integer"
+              },
+              "mode_name": {
+                "type": "string"
+              },
+              "broadcast_filter": {
+                "type": "boolean"
+              },
+              "priorities": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "port": {
+                      "type": "integer"
+                    },
+                    "priority": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              },
+              "ingress": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PortRate"
+                }
+              },
+              "egress": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PortRate"
+                }
+              },
+              "storm_rates": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PortRate"
+                }
+              }
+            }
+          },
+          "rates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Rate names indexed by rate code."
+          },
+          "priorities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PortRate": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer"
+          },
+          "rate": {
+            "type": "integer"
+          }
+        }
+      },
+      "Ports": {
+        "type": "object",
+        "properties": {
+          "ports": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "SavedConfig": {
+        "type": "object",
+        "description": "Full switch configuration document (see the api package)."
+      }
+    },
+    "responses": {
+      "OK": {
+        "description": "Success",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/OK"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Invalid request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Wrong password or missing login",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "SwitchError": {
+        "description": "The switch reported an error or did not answer",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "token": []
+    }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Liveness check",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OK"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_health"
+      }
+    },
+    "/api/discover": {
+      "post": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Broadcast-discover switches on the LAN",
+        "responses": {
+          "200": {
+            "description": "devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceRow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "do_discover"
+      }
+    },
+    "/api/devices": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "List known switches",
+        "responses": {
+          "200": {
+            "description": "devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceRow"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_devices"
+      }
+    },
+    "/api/devices/add": {
+      "post": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Add a switch by IP (across subnets)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ip"
+                ],
+                "properties": {
+                  "ip": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeviceRow"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "502": {
+            "$ref": "#/components/responses/SwitchError"
+          }
+        },
+        "operationId": "do_devices_add"
+      }
+    },
+    "/api/switch/{mac}/login": {
+      "post": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Authenticate to a switch",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Login"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          }
+        },
+        "operationId": "do_login"
+      }
+    },
+    "/api/switch/{mac}/info": {
+      "get": {
+        "tags": [
+          "info"
+        ],
+        "summary": "Switch information",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Info"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_info"
+      }
+    },
+    "/api/switch/{mac}/name": {
+      "post": {
+        "tags": [
+          "info"
+        ],
+        "summary": "Set switch name",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_name"
+      }
+    },
+    "/api/switch/{mac}/ip": {
+      "post": {
+        "tags": [
+          "info"
+        ],
+        "summary": "Set IP settings (DHCP or static)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IPSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_ip"
+      }
+    },
+    "/api/switch/{mac}/ports": {
+      "get": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Port link status",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ports",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortsResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_ports"
+      }
+    },
+    "/api/switch/{mac}/ports/admin": {
+      "post": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Set a port's speed and flow control",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "port": {
+                    "type": "integer"
+                  },
+                  "speed": {
+                    "type": "integer"
+                  },
+                  "flow_control": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_ports_admin"
+      }
+    },
+    "/api/switch/{mac}/stats": {
+      "get": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Port statistics",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PortStats"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_stats"
+      }
+    },
+    "/api/switch/{mac}/stats/clear": {
+      "post": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Clear all port counters",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "do_stats_clear"
+      }
+    },
+    "/api/switch/{mac}/cabletest": {
+      "post": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Run the cable tester on ports",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ports"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/CableResult"
+                      }
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "do_cabletest"
+      }
+    },
+    "/api/switch/{mac}/mirror": {
+      "get": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Get mirroring config",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "mirror",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mirror"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_mirror"
+      },
+      "post": {
+        "tags": [
+          "ports"
+        ],
+        "summary": "Set mirroring (dest 0 disables)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Mirror"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_mirror"
+      }
+    },
+    "/api/switch/{mac}/vlan": {
+      "get": {
+        "tags": [
+          "vlan"
+        ],
+        "summary": "VLAN configuration",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "vlan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VLANResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_vlan"
+      }
+    },
+    "/api/switch/{mac}/vlan/mode": {
+      "post": {
+        "tags": [
+          "vlan"
+        ],
+        "summary": "Set VLAN engine mode (0-4; resets membership)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_vlan_mode"
+      }
+    },
+    "/api/switch/{mac}/vlan/port": {
+      "post": {
+        "tags": [
+          "vlan"
+        ],
+        "summary": "Set port-based VLAN membership",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortVLAN"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_vlan_port"
+      }
+    },
+    "/api/switch/{mac}/vlan/8021q": {
+      "post": {
+        "tags": [
+          "vlan"
+        ],
+        "summary": "Create or update an 802.1Q VLAN",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VLAN8021Q"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_vlan_8021q"
+      }
+    },
+    "/api/switch/{mac}/vlan/8021q/delete": {
+      "post": {
+        "tags": [
+          "vlan"
+        ],
+        "summary": "Delete an 802.1Q VLAN",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vid": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_vlan_8021q_delete"
+      }
+    },
+    "/api/switch/{mac}/vlan/pvid": {
+      "post": {
+        "tags": [
+          "vlan"
+        ],
+        "summary": "Set the PVID on ports",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ports": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "vid": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_vlan_pvid"
+      }
+    },
+    "/api/switch/{mac}/qos": {
+      "get": {
+        "tags": [
+          "qos"
+        ],
+        "summary": "QoS, rate limits and broadcast filtering",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "qos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QoSResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_qos"
+      }
+    },
+    "/api/switch/{mac}/qos/mode": {
+      "post": {
+        "tags": [
+          "qos"
+        ],
+        "summary": "Set QoS mode (1 port-based, 2 802.1p)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "integer",
+                    "enum": [
+                      1,
+                      2
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_qos_mode"
+      }
+    },
+    "/api/switch/{mac}/qos/priority": {
+      "post": {
+        "tags": [
+          "qos"
+        ],
+        "summary": "Set port priority (1 high - 4 low)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ports": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "priority": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_qos_priority"
+      }
+    },
+    "/api/switch/{mac}/qos/rate": {
+      "post": {
+        "tags": [
+          "qos"
+        ],
+        "summary": "Set ingress/egress rate limits",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ports": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "ingress": {
+                    "type": "integer",
+                    "nullable": true
+                  },
+                  "egress": {
+                    "type": "integer",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_qos_rate"
+      }
+    },
+    "/api/switch/{mac}/qos/broadcast": {
+      "post": {
+        "tags": [
+          "qos"
+        ],
+        "summary": "Broadcast storm filtering on/off and rate",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "ports": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer"
+                    }
+                  },
+                  "rate": {
+                    "type": "integer",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_qos_broadcast"
+      }
+    },
+    "/api/switch/{mac}/lags": {
+      "get": {
+        "tags": [
+          "lag"
+        ],
+        "summary": "List static LAGs",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "lags",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LAGsResponse"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_lags"
+      },
+      "post": {
+        "tags": [
+          "lag"
+        ],
+        "summary": "Set a LAG's membership and admin mode",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LAG"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_lags"
+      }
+    },
+    "/api/switch/{mac}/multicast": {
+      "get": {
+        "tags": [
+          "multicast"
+        ],
+        "summary": "IGMP snooping settings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "multicast",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Multicast"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_multicast"
+      },
+      "post": {
+        "tags": [
+          "multicast"
+        ],
+        "summary": "Set IGMP snooping settings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Multicast"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_multicast"
+      }
+    },
+    "/api/switch/{mac}/management": {
+      "get": {
+        "tags": [
+          "management"
+        ],
+        "summary": "Management settings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "management",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Management"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_management"
+      },
+      "post": {
+        "tags": [
+          "management"
+        ],
+        "summary": "Set management settings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Management"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_management"
+      }
+    },
+    "/api/switch/{mac}/password": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Change the admin password",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "old": {
+                    "type": "string"
+                  },
+                  "new": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_password"
+      }
+    },
+    "/api/switch/{mac}/reboot": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Reboot the switch",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "do_reboot"
+      }
+    },
+    "/api/switch/{mac}/factory-reset": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Restore factory defaults",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "set_factory-reset"
+      }
+    },
+    "/api/switch/{mac}/firmware": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Upgrade firmware from a local file (NSDP trigger + TFTP)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Path to the .flash image on the server host."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "sent": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "do_firmware"
+      }
+    },
+    "/api/switch/{mac}/config": {
+      "get": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Read the full configuration as one document",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedConfig"
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_config"
+      }
+    },
+    "/api/switch/{mac}/config/save": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Save configuration to a file on the server host",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/OK"
+          }
+        },
+        "operationId": "do_config_save"
+      }
+    },
+    "/api/switch/{mac}/config/restore": {
+      "post": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Restore configuration from a file or inline document",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "config": {
+                    "$ref": "#/components/schemas/SavedConfig"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "log": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "do_config_restore"
+      }
+    },
+    "/api/switch/{mac}/raw": {
+      "get": {
+        "tags": [
+          "maintenance"
+        ],
+        "summary": "Read raw NSDP TLVs (debugging)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/mac"
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "description": "Comma-separated hex tags, e.g. 0c00,1000",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "tlvs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "result": {
+                      "type": "integer"
+                    },
+                    "tlvs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "tag": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "hex": {
+                            "type": "string"
+                          },
+                          "ascii": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "operationId": "get_raw"
+      }
+    }
+  }
+}
