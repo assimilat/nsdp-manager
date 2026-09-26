@@ -12,6 +12,18 @@ Windows/Adobe AIR app does, in three front ends over one shared core:
 
 Verified against a live **NETGEAR XS708E** (8-port 10-Gigabit, firmware 1.00.12).
 
+## Interfaces
+
+The desktop app — a modern dark UI over the same core:
+
+![Desktop app, Status page](docs/img/desktop-status.svg)
+
+![Desktop app, LAG page](docs/img/desktop-lag.svg)
+
+The terminal UI (`prosafe` with no arguments):
+
+![Terminal UI](docs/img/tui.svg)
+
 ## What it does (parity with the Windows utility)
 
 | Windows utility page | Covered |
